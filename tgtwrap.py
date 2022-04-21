@@ -18,17 +18,25 @@ def skip_empty(tier, skipx=True):
             continue
         yield an
 
-def get_contains(tier, an, skipblank=True, skipx=True):
+def get_contains(tier, an, skipblank=True, skipx=True,
+                 fillempty=False, matchtime=False):
     ls = tier.get_annotations_between_timepoints(an.start_time, an.end_time)
-    for an in ls:
-        if skipblank and not an.text.strip():
+    got_any = False
+    for sub_an in ls:
+        if skipblank and not sub_an.text.strip():
             continue
-        elif skipx and an.text.strip() == 'XXX':
+        elif skipx and sub_an.text.strip() == 'XXX':
             continue
-        yield an
+        yield sub_an
+        got_any = True
+    if not got_any and fillempty:
+        if matchtime:
+            yield tgt.Annotation(an.start_time, an.end_time, 'XXX')
+        else:
+            yield tgt.Annotation(0, 0, 'XXX')
 
 def all_contains(tg, an, **kwargs):
     ret = {}
     for t in tg.tiers:
-        ret[t.name] = list(get_contains(t, an **kwargs))
+        ret[t.name] = list(get_contains(t, an, **kwargs))
     return ret

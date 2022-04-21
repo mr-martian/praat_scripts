@@ -1,6 +1,7 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import tgt
+import tgtwrap
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -9,16 +10,11 @@ parser.add_argument('word_tier', action='store')
 parser.add_argument('--label', nargs='+', default=[])
 args = parser.parse_args()
 
-tg = None
-for enc in ['utf-8', 'utf-16']:
-    try:
-        tg = tgt.io.read_textgrid(args.infile, encoding=enc)
-        break
-    except:
-        pass
+tg = tgtwrap.load(args.infile)
 
 names = sorted(n for n in tg.get_tier_names() if n != args.word_tier)
-tiers = [tg.get_tiers_by_name(n)[0] for n in names]
+w_tier = tg.get_tiers_by_name(args.word_tier)[0]
+data = [tgtwrap.all_contains(tg, an, fillempty=True) for an in tgtwrap.skip_empty(w_tier)]
 
 print(args.word_tier, end='\t')
 for n in names:
@@ -27,22 +23,10 @@ for n in names:
         print(n + ' label', end='\t')
 print('')
 
-w_tier = tg.get_tiers_by_name(args.word_tier)[0]
-for an in w_tier.annotations:
-    print(an.text, end='\t')
-    start = an.start_time
-    end = an.end_time
-    for n, t in zip(names, tiers):
-        for sub_an in t.annotations:
-            if sub_an.text == 'XXX':
-                continue
-            if sub_an.start_time >= start and sub_an.end_time <= end:
-                print(sub_an.end_time - sub_an.start_time, end='\t')
-                if n in args.label:
-                    print(sub_an.text, end='\t')
-                break
-        else:
-            print('0', end='\t')
-            if n in args.label:
-                print('XXX', end='\t')
+for blob in data:
+    print(blob[args.word_tier][0].text, end='\t')
+    for n in names:
+        print(blob[n][0].duration(), end='\t')
+        if n in args.label:
+            print(blob[n][0].text, end='\t')
     print('')
