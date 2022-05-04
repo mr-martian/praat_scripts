@@ -5,6 +5,7 @@ import argparse
 import itertools
 
 parser = argparse.ArgumentParser('plot data from Phonetics L2 Arabic final project')
+parser.add_argument('--speaker', '-s', action='store', default='')
 parser.add_argument('tsv', action='store')
 args = parser.parse_args()
 
@@ -72,7 +73,17 @@ with open(args.tsv) as fin:
             continue
         name, lang, tier, text, f1, f2 = line.strip().split('\t')
         h = 0 if lang == 'Arabic' else 1
+        if args.speaker:
+            if args.speaker == name:
+                h = 0
+            else:
+                continue
         data[h].append((text, float(f1), float(f2)))
+
+def filter_and_plot(ax, data, pattern, legend):
+    make_subplot(ax, [d for d in data if d[0] in pattern])
+    if legend:
+        ax.legend(bbox_to_anchor=(1.0,0.5), loc='center left')
 
 def make_fig(data, pattern, fname):
     fig, axs = plt.subplots(2, 2, sharex=True, sharey='row', figsize=(8.4, 4.8))
@@ -80,9 +91,7 @@ def make_fig(data, pattern, fname):
     axs[0,1].set_title('English L1')
     for h in range(2):
         for v, s in enumerate(pattern):
-            make_subplot(axs[v,h], [d for d in data[h] if d[0] in s])
-            if h == 1:
-                axs[v,h].legend(bbox_to_anchor=(1.0,0.5), loc="center left")
+            filter_and_plot(axs[v,h], data[h], s, h == 1)
     axs[0,0].invert_xaxis()
     axs[0,0].invert_yaxis()
     axs[1,1].invert_yaxis()
@@ -91,7 +100,27 @@ def make_fig(data, pattern, fname):
 
     plt.savefig(fname)
 
-make_fig(data, cv_split, 'data-all.png')
-make_fig(data, phon_split[:2], 'data-stop.png')
-make_fig(data, phon_split[2:4], 'data-fricative.png')
-make_fig(data, phon_split[4:], 'data-vowel.png')
+def make_fig_single(data, fname):
+    fig, axs = plt.subplots(4, sharex=True, sharey=True, figsize=(4.4,9))
+    filter_and_plot(axs[0], data, cv_split[0]+cv_split[1], True)
+    axs[0].set_title('All Segments')
+    filter_and_plot(axs[1], data, phon_split[0]+phon_split[1], True)
+    axs[1].set_title('Stops')
+    filter_and_plot(axs[2], data, phon_split[2]+phon_split[3], True)
+    axs[2].set_title('Fricatives')
+    filter_and_plot(axs[3], data, phon_split[4]+phon_split[5], True)
+    axs[3].set_title('Vowels')
+    axs[0].invert_xaxis()
+    axs[0].invert_yaxis()
+    for ax in fig.get_axes():
+        ax.label_outer()
+    plt.tight_layout()
+    plt.savefig(fname)
+
+if args.speaker:
+    make_fig_single(data[0], args.speaker + '.png')
+else:
+    make_fig(data, cv_split, 'data-all.png')
+    make_fig(data, phon_split[:2], 'data-stop.png')
+    make_fig(data, phon_split[2:4], 'data-fricative.png')
+    make_fig(data, phon_split[4:], 'data-vowel.png')
